@@ -1,0 +1,108 @@
+@import "tailwindcss";
+
+/* 本地字体文件声明 */
+@font-face {
+	font-family: 'Hero';
+	src: url('/fonts/Hero-Regular.otf') format('opentype');
+	font-weight: 400;
+	font-style: normal;
+	font-display: swap;
+}
+
+@font-face {
+	font-family: 'Hero';
+	src: url('/fonts/Hero-Light.otf') format('opentype');
+	font-weight: 300;
+	font-style: normal;
+	font-display: swap;
+}
+
+@font-face {
+	font-family: 'Hero';
+	src: url('/fonts/Hero-Bold.otf') format('opentype');
+	font-weight: 700;
+	font-style: normal;
+	font-display: swap;
+}
+
+:root {
+	--background: #000000;
+	--foreground: #ffffff;
+}
+
+body {
+	background-color: rgb(33, 33, 33);
+	min-height: 100vh;
+	font-family: 'Hero', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+}
+
+/* 全局字体设置 */
+* {
+	font-family: 'Hero', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+}
+
+/* 自定义 RainbowKit 连接钱包按钮样式 */
+[data-testid="connect-wallet-button"] {
+	background-color: #C1FF72 !important;
+	color: #231F20 !important;
+	border-radius: 50% !important;
+	padding: 12px 24px !important;
+	font-weight: 600 !important;
+	font-size: 16px !important;
+	border: none !important;
+	box-shadow: none !important;
+	transition: all 0.2s ease !important;
+	width: 48px !important;
+	height: 48px !important;
+	display: flex !important;
+	align-items: center !important;
+	justify-content: center !important;
+	font-family: 'Hero', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif !important;
+}
+
+[data-testid="connect-wallet-button"]:hover {
+	background-color: #B8F06A !important;
+	transform: translateY(-1px) !important;
+}
+
+/* 钱包连接模态框中的按钮样式 */
+[data-testid="wallet-option-button"] {
+	background-color: #C1FF72 !important;
+	color: #231F20 !important;
+	border-radius: 50% !important;
+	padding: 12px 24px !important;
+	font-weight: 600 !important;
+	border: none !important;
+	box-shadow: none !important;
+	width: 48px !important;
+	height: 48px !important;
+	display: flex !important;
+	align-items: center !important;
+	justify-content: center !important;
+	font-family: 'Hero', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif !important;
+}
+
+[data-testid="wallet-option-button"]:hover {
+	background-color: #B8F06A !important;
+}
+
+/* 断开连接按钮样式 */
+[data-testid="disconnect-wallet-button"] {
+	background-color: #C1FF72 !important;
+	color: #231F20 !important;
+	border-radius: 50% !important;
+	padding: 12px 24px !important;
+	font-weight: 600 !important;
+	border: none !important;
+	box-shadow: none !important;
+	width: 48px !important;
+	height: 48px !important;
+	display: flex !important;
+	align-items: center !important;
+	justify-content: center !important;
+	font-family: 'Hero', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif !important;
+}
+
+[data-testid="disconnect-wallet-button"]:hover {
+	background-color: #B8F06A !important;
+}
