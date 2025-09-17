@@ -255,7 +255,7 @@ export default function NetworkSelectModal({
           ))}
         </NetworkList>
 
-        <ManageLink>Manage token lists →</ManageLink>
+        {/* <ManageLink>Manage token lists →</ManageLink> */}
       </ModalContent>
     </Modal>
   )

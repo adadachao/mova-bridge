@@ -408,7 +408,7 @@ export default function TokenSelectModal({
           ))}
         </TokenList>
 
-        <ManageLink>Manage token lists →</ManageLink>
+        {/* <ManageLink>Manage token lists →</ManageLink> */}
       </ModalContent>
     </Modal>
   )
