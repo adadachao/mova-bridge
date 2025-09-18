@@ -639,13 +639,13 @@ export default function Home() {
 	const [showFromNetworkModal, setShowFromNetworkModal] = useState(false)
 	const [showFromTokenModal, setShowFromTokenModal] = useState(false)
 
-	// 简化的按钮状态控制
-	const [buttonText, setButtonText] = useState('Connect Wallet')
-	const [buttonDisabled, setButtonDisabled] = useState(false)
-	const [buttonAction, setButtonAction] = useState<'connect' | 'approve' | 'bridge' | 'none'>('connect')
+	// 1) state
+	const [awaitingBridgeAfterApprove, setAwaitingBridgeAfterApprove] = useState(false)
 	const [bridgeTxHash, setBridgeTxHash] = useState<`0x${string}` | undefined>(undefined)
-	// 跟踪已处理的授权哈希，避免重复触发
-	const [processedApproveHash, setProcessedApproveHash] = useState<string | null>(null)
+	// 新增：按钮点击后立即进入 loading 的本地 UI 覆盖
+	const [uiLoadingAction, setUiLoadingAction] = useState<null | 'approve' | 'bridge'>(null)
+	// 新增：记录已处理的授权交易哈希，避免重复触发
+	const [lastHandledApproveHash, setLastHandledApproveHash] = useState<`0x${string}` | null>(null)
 
 	// Token balance and allowance queries
 	const { data: tokenBalance, refetch: refetchTokenBalance } = useReadContract({
@@ -676,77 +676,51 @@ export default function Home() {
 	const { isLoading: isBridgeConfirming, isSuccess: isBridgeConfirmed, isError: isBridgeError } =
 		useWaitForTransactionReceipt({ hash: bridgeTxHash })
 
-	// 更新按钮状态
-	const updateButtonState = useCallback(() => {
+	// Calculate button state
+	const getButtonState = () => {
 		if (!isConnected) {
-			setButtonText('Connect Wallet')
-			setButtonDisabled(false)
-			setButtonAction('connect')
-			return
+			return { text: 'Connect Wallet', disabled: false, action: 'connect' }
 		}
 
 		if (!termsAccepted) {
-			setButtonText('Accept Terms')
-			setButtonDisabled(true)
-			setButtonAction('none')
-			return
+			return { text: 'Accept Terms', disabled: true, action: 'none' }
 		}
 
-		if (!fromToken) {
-			setButtonText('Select Token')
-			setButtonDisabled(true)
-			setButtonAction('none')
-			return
+		// 优先使用本地 UI 覆盖，点击即进入 loading
+		if (uiLoadingAction === 'bridge') {
+			return { text: 'Bridging...', disabled: true, action: 'bridge' }
+		}
+		if (uiLoadingAction === 'approve') {
+			return { text: 'Approving...', disabled: true, action: 'approve' }
 		}
 
-		if (!fromAmount || parseFloat(fromAmount) <= 0) {
-			setButtonText('Enter Amount')
-			setButtonDisabled(true)
-			setButtonAction('none')
-			return
-		}
-
-		const amountWei = parseEther(fromAmount || '0')
+		const amountWei = parseEther(fromAmount)
 		const balanceWei = tokenBalance || BigInt(0)
 		const allowanceWei = tokenAllowance || BigInt(0)
 
-		if (Number(balanceWei) < amountWei) {
-			setButtonText('Insufficient Balance')
-			setButtonDisabled(true)
-			setButtonAction('none')
-			return
+		// 链上状态指示（兜底）
+		if ((isBridgePending || isBridgeConfirming) && bridgeTxHash) {
+			return { text: 'Bridging...', disabled: true, action: 'bridge' }
 		}
 
-		// 检查是否需要Approve
+		// 2) 未选 token / 未输入金额 / 余额不足
+		if (!fromToken) return { text: 'Select Token', disabled: true, action: 'none' }
+		if (!fromAmount || parseFloat(fromAmount) <= 0) return { text: 'Enter Amount', disabled: true, action: 'none' }
+		if (Number(balanceWei) < amountWei) return { text: 'Insufficient Balance', disabled: true, action: 'none' }
+
+		// 授权不足 → Approving/Approve
 		if (Number(allowanceWei) < amountWei) {
 			if (isApprovePending || isApproveConfirming) {
-				setButtonText('Approving...')
-				setButtonDisabled(true)
-				setButtonAction('approve')
-			} else {
-				setButtonText('Approve')
-				setButtonDisabled(false)
-				setButtonAction('approve')
+				return { text: 'Approving...', disabled: true, action: 'approve' }
 			}
-			return
+			return { text: 'Approve', disabled: false, action: 'approve' }
 		}
 
-		// 可以跨链
-		if (isBridgePending || isBridgeConfirming) {
-			setButtonText('Bridging...')
-			setButtonDisabled(true)
-			setButtonAction('bridge')
-		} else {
-			setButtonText('Bridge')
-			setButtonDisabled(false)
-			setButtonAction('bridge')
-		}
-	}, [isConnected, termsAccepted, fromToken, fromAmount, tokenBalance, tokenAllowance, isApprovePending, isApproveConfirming, isBridgePending, isBridgeConfirming])
+		// 正常可 Bridge
+		return { text: 'Bridge', disabled: false, action: 'bridge' }
+	};
 
-	// 监听状态变化，更新按钮
-	useEffect(() => {
-		updateButtonState()
-	}, [updateButtonState])
+	const buttonState = getButtonState();
 
 	// const handleSwap = useCallback(() => {
 	// 	// 交换网络和token
@@ -762,7 +736,8 @@ export default function Home() {
 	// 	setToToken(tempToken)
 	// 	setFromAmount(toAmount)
 	// 	setToAmount(tempAmount)
-	// 		// 	setBridgeTxHash(undefined) // 清理
+	// 	setAwaitingBridgeAfterApprove(false) // 重置标志
+	// 	setBridgeTxHash(undefined) // 清理
 	// 	switchChain({ chainId: toNetwork?.chainId as number })
 	// }, [fromNetwork, toNetwork, fromToken, toToken, fromAmount, toAmount, setAwaitingBridgeAfterApprove, switchChain])
 
@@ -780,6 +755,7 @@ export default function Home() {
 		console.log('handleBridge', fromNetwork, fromToken, fromAmount, address)
 		if (!fromNetwork?.contract || !fromToken?.address || !fromToken?.toChainId || !address) return
 		try {
+			setUiLoadingAction('bridge')
 			const hash = await writeBridgeAsync({
 				address: fromNetwork.contract as `0x${string}`,
 				abi: BridgeABI.abi,
@@ -794,12 +770,15 @@ export default function Home() {
 			setBridgeTxHash(hash as `0x${string}`)
 		} catch (e) {
 			console.error('outTransfer error', e)
+			setUiLoadingAction(null)
 		}
 	}, [fromNetwork, fromToken, fromAmount, address, writeBridgeAsync])
 
 	const handleApprove = useCallback(() => {
 		if (fromToken?.address && fromNetwork?.contract) {
 			try {
+				setAwaitingBridgeAfterApprove(true) // 设置标志
+				setUiLoadingAction('approve')
 				writeApprove({
 					address: fromToken.address as `0x${string}`,
 					abi: ERC20_ABI,
@@ -807,55 +786,75 @@ export default function Home() {
 					args: [fromNetwork.contract as `0x${string}`, maxUint256]
 				});
 			} catch (error) {
+				setUiLoadingAction(null)
 				console.error('approve error', error)
 			}
 
 		}
-	}, [fromToken, fromNetwork, writeApprove]);
+	}, [fromToken, fromNetwork, writeApprove, setAwaitingBridgeAfterApprove]);
 
-		// 监听授权确认，避免重复触发
+	// 只在“来自按钮的Approve完成”后自动 Bridge
 	useEffect(() => {
-		if (isApproveConfirmed && approveHash && approveHash !== processedApproveHash) {
+		// 仅当：授权已确认 + 有有效哈希 + 该哈希未被处理过 + 是由按钮发起的授权
+		if (isApproveConfirmed && approveHash && approveHash !== lastHandledApproveHash && awaitingBridgeAfterApprove) {
 			toast.success('Approve confirmed')
+			// 授权成功后刷新 allowance，确保按钮文案及时切换
 			refetchTokenAllowance?.()
-			setProcessedApproveHash(approveHash)
-			updateButtonState()
+			handleBridge()
+			setAwaitingBridgeAfterApprove(false) // 执行后清标志
+			setLastHandledApproveHash(approveHash)
 		}
-	}, [isApproveConfirmed, approveHash, processedApproveHash, refetchTokenAllowance, updateButtonState])
+	}, [isApproveConfirmed, approveHash, lastHandledApproveHash, awaitingBridgeAfterApprove, handleBridge, refetchTokenAllowance])
 
-	// 网络或代币变化时重置已处理哈希
+	// 当网络/代币变更时，重置已处理授权哈希，避免旧哈希在新环境下误触发
 	useEffect(() => {
-		setProcessedApproveHash(null)
+		setLastHandledApproveHash(null)
+		setAwaitingBridgeAfterApprove(false)
 	}, [fromNetwork?.id, fromToken?.address])
 
 	// Bridge 成功提示 + 刷新余额
 	useEffect(() => {
 		if (isBridgeConfirmed && bridgeTxHash) {
 			toast.success('Bridge submitted')
-			setBridgeTxHash(undefined)
+			setBridgeTxHash(undefined) // 清理
+			setUiLoadingAction(null)
 			refetchTokenBalance()
-			updateButtonState()
 		}
-	}, [isBridgeConfirmed, bridgeTxHash, refetchTokenBalance, updateButtonState])
+	}, [isBridgeConfirmed, bridgeTxHash, refetchTokenBalance])
 
-	// 监听失败
+	// 监听失败并恢复按钮状态
 	useEffect(() => {
 		if (isApproveError) {
-			toast.error('Approve失败')
-			updateButtonState()
+			setAwaitingBridgeAfterApprove(false)
+			setUiLoadingAction(null)
+			toast.error('Approve failed')
 		}
-	}, [isApproveError, updateButtonState])
+	}, [isApproveError])
 
 	useEffect(() => {
 		if (isBridgeError && bridgeTxHash) {
 			toast.error('Bridge failed')
-			setBridgeTxHash(undefined)
-			updateButtonState()
+			setBridgeTxHash(undefined) // 清理
+			setUiLoadingAction(null)
 		}
-	}, [isBridgeError, bridgeTxHash, updateButtonState])
+	}, [isBridgeError, bridgeTxHash])
+
+	// 监听用户取消（关闭弹窗/拒签）：pending -> false 且无 success/error
+	useEffect(() => {
+		if (uiLoadingAction === 'approve' && !isApprovePending && !isApproveConfirmed && !isApproveError) {
+			setUiLoadingAction(null)
+			setAwaitingBridgeAfterApprove(false)
+		}
+	}, [uiLoadingAction, isApprovePending, isApproveConfirmed, isApproveError])
+
+	useEffect(() => {
+		if (uiLoadingAction === 'bridge' && !isBridgePending && !isBridgeConfirmed && !isBridgeError && !bridgeTxHash) {
+			setUiLoadingAction(null)
+		}
+	}, [uiLoadingAction, isBridgePending, isBridgeConfirmed, isBridgeError, bridgeTxHash])
 
 	const handleButtonClick = useCallback(() => {
-		switch (buttonAction) {
+		switch (buttonState.action) {
 			case 'approve':
 				handleApprove();
 				break;
@@ -863,7 +862,7 @@ export default function Home() {
 				handleBridge();
 				break;
 		}
-	}, [buttonAction, handleApprove, handleBridge]);
+	}, [buttonState.action, handleApprove, handleBridge]);
 
 	const handleFromNetworkSelect = useCallback((network: Network) => {
 		setFromNetwork(network)
@@ -871,6 +870,7 @@ export default function Home() {
 		setFromToken(null)
 		setToToken(null)
 		setToNetwork(null)
+		setAwaitingBridgeAfterApprove(false) // 重置标志
 		setBridgeTxHash(undefined) // 清理
 		// 切换钱包网络到所选 From 网络
 		try {
@@ -880,7 +880,7 @@ export default function Home() {
 		} catch (e) {
 			console.warn('switch chain failed', e)
 		}
-	}, [currentChainId, switchChain])
+	}, [currentChainId, switchChain, setAwaitingBridgeAfterApprove])
 
 	const handleFromTokenSelect = useCallback((token: TokenInfo) => {
 		setFromToken(token)
@@ -1234,10 +1234,10 @@ export default function Home() {
 						{address ? (
 							<BottomGrouping>
 								<ActionButton
-									disabled={buttonDisabled}
+									disabled={buttonState.disabled}
 									onClick={handleButtonClick}
 								>
-									{buttonText}
+									{buttonState.text}
 								</ActionButton>
 							</BottomGrouping>
 						) : (
