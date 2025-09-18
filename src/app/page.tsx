@@ -49,6 +49,8 @@ type HistoryItem = {
 	token: string;
 	token_symbol: string;
 	status: string;
+	url_source: string;
+	url_target?: string;
 };
 
 type HistoryApiResponse = {
@@ -1295,7 +1297,7 @@ export default function Home() {
 												<HistoryRow key={it.tx_hash}>
 													<div>{it.from_chain}</div>
 													<div>{it.to_chain}</div>
-													<HashMono href={`https://scan.mars.movachain.com/tx/${it.tx_hash}`} target="_blank" rel="noopener noreferrer">{it.tx_hash ? shortHash(it.tx_hash) : '-'}</HashMono>
+													<HashMono href={`${it.url_source}`} target="_blank" rel="noopener noreferrer">{it.tx_hash ? shortHash(it.tx_hash) : '-'}</HashMono>
 													<div>{formatAmount(it.amount, it.token_symbol)}</div>
 													<div>{formatTime(it.create_time)}</div>
 													<StatusTag ok={false}>{it.status || 'Pending'}</StatusTag>
@@ -1322,10 +1324,12 @@ export default function Home() {
 												<HistoryRow key={it.tx_hash}>
 													<div>{it.from_chain}</div>
 													<div>{it.to_chain}</div>
-													<HashMono href={`https://scan.mars.movachain.com/tx/${it.tx_hash}`} target="_blank" rel="noopener noreferrer">{it.tx_hash ? shortHash(it.tx_hash) : '-'}</HashMono>
+													<HashMono href={`${it.url_source}`} target="_blank" rel="noopener noreferrer">{it.tx_hash ? shortHash(it.tx_hash) : '-'}</HashMono>
 													<div>{formatAmount(it.amount, it.token_symbol)}</div>
 													<div>{formatTime(it.create_time)}</div>
-													<StatusTag ok>{it.status || 'Executed'}</StatusTag>
+													<HashMono href={`${it.url_target}`} target="_blank" rel="noopener noreferrer">
+														<StatusTag ok>{it.status || 'Executed'}</StatusTag>
+													</HashMono>
 												</HistoryRow>
 											))}
 										</>
