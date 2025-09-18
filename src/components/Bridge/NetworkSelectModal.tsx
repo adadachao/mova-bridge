@@ -135,20 +135,20 @@ const NetworkDescription = styled.div`
   line-height: 1.4;
 `
 
-const ManageLink = styled.div`
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  padding: 12px;
-  color: #c1ff72;
-  font-size: 14px;
-  cursor: pointer;
-  border-top: 1px solid #2a2a2a;
-  text-decoration: none;
-  &:hover {
-    opacity: 0.8;
-  }
-`
+// const ManageLink = styled.div`
+//   display: flex;
+//   align-items: center;
+//   justify-content: center;
+//   padding: 12px;
+//   color: #c1ff72;
+//   font-size: 14px;
+//   cursor: pointer;
+//   border-top: 1px solid #2a2a2a;
+//   text-decoration: none;
+//   &:hover {
+//     opacity: 0.8;
+//   }
+// `
 
 const NetworkFallbackCircle = styled.div`
   width: 36px;

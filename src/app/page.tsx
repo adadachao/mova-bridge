@@ -938,7 +938,7 @@ export default function Home() {
 		try {
 			setHistoryLoading(true)
 			setHistoryError(null)
-			const res = await fetch(`http://15.206.56.79:38005/api/v1/user/history?address=${addr}`)
+			const res = await fetch(`https://bridge.marsapi.movachain.com/api/v1/user/history?address=${addr}`)
 			const json: HistoryApiResponse = await res.json()
 			if (json.code === 0 && json.data) {
 				setHistoryPending(json.data.pending || [])

@@ -36,7 +36,7 @@ export function useBridgeParams() {
           setLoading(true)
           setError(null)
   
-          const response = await fetch('http://15.206.56.79:38005/api/v1/params')
+          const response = await fetch('https://bridge.marsapi.movachain.com/api/v1/params')
   
           if (!response.ok) {
             throw new Error(`HTTP error! status: ${response.status}`)
