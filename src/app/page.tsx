@@ -815,7 +815,7 @@ export default function Home() {
 		}
 	}, [fromToken, fromNetwork, writeApprove]);
 
-		// 监听授权确认，避免重复触发
+	// 监听授权确认，避免重复触发
 	useEffect(() => {
 		if (isApproveConfirmed && approveHash && approveHash !== processedApproveHash) {
 			toast.success('Approve confirmed')
@@ -835,8 +835,14 @@ export default function Home() {
 		if (isBridgeConfirmed && bridgeTxHash) {
 			toast.success('Bridge submitted')
 			setBridgeTxHash(undefined)
-			refetchTokenBalance()
-			updateButtonState()
+			// 清空输入框并在短暂延迟后刷新页面
+			setFromAmount('')
+			if (typeof window !== 'undefined') {
+				setTimeout(() => {
+					refetchTokenBalance()
+					updateButtonState()
+				}, 1500)
+			}
 		}
 	}, [isBridgeConfirmed, bridgeTxHash, refetchTokenBalance, updateButtonState])
 
