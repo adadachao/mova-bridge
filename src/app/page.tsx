@@ -900,7 +900,7 @@ export default function Home() {
 					id: targetChainKey,
 					name: targetChainData.chain,
 					description: `${targetChainData.chain} network`,
-					icon: targetChainKey && targetChainKey.includes('Mova') ? '/images/mova-logo.png' : '',
+					icon: targetChainKey && targetChainKey.includes('Mova') ? '/images/mova-logo.png' : targetChainKey && (targetChainKey.includes('BSC') || targetChainKey.includes('Binance')) ? '/images/bnb-logo.png' : '',
 					chainId: targetChainData.chain_id,
 					contract: targetChainData.contract,
 					explorerUrl: targetChainData.explorer_url,
@@ -987,7 +987,7 @@ export default function Home() {
 			id: key,
 			name: chainData.chain,
 			description: `${chainData.chain} network`,
-			icon: key && key.includes('Mova') ? '/images/mars-logo.png' : '',
+			icon: key && key.includes('Mova') ? '/images/mars-logo.png' : key && (key.includes('BSC') || key.includes('Binance')) ? '/images/bnb-logo.png' : '',
 			chainId: chainData.chain_id,
 			contract: chainData.contract,
 			explorerUrl: chainData.explorer_url,
@@ -1027,7 +1027,7 @@ export default function Home() {
 					id: firstChainKey,
 					name: firstChain.chain,
 					description: `${firstChain.chain} network`,
-					icon: firstChainKey && firstChainKey.includes('Mova') ? '/images/mars-logo.png' : '',
+					icon: firstChainKey && firstChainKey.includes('Mova') ? '/images/mars-logo.png' : firstChainKey && (firstChainKey.includes('BSC') || firstChainKey.includes('Binance')) ? '/images/bnb-logo.png' : '',
 					chainId: firstChain.chain_id,
 					contract: firstChain.contract,
 					explorerUrl: firstChain.explorer_url,
@@ -1042,7 +1042,7 @@ export default function Home() {
 					id: secondChainKey,
 					name: secondChain.chain,
 					description: `${secondChain.chain} network`,
-					icon: secondChainKey && secondChainKey.includes('Mova') ? '/images/mars-logo.png' : '',
+					icon: secondChainKey && secondChainKey.includes('Mova') ? '/images/mars-logo.png' : secondChainKey && (secondChainKey.includes('BSC') || secondChainKey.includes('Binance')) ? '/images/bnb-logo.png' : '',
 					chainId: secondChain.chain_id,
 					contract: secondChain.contract,
 					explorerUrl: secondChain.explorer_url,
@@ -1078,7 +1078,7 @@ export default function Home() {
 							id: targetChainKey,
 							name: targetChainData.chain,
 							description: `${targetChainData.chain} network`,
-							icon: targetChainKey && targetChainKey.includes('Mova') ? '/images/mars-logo.png' : '',
+							icon: targetChainKey && targetChainKey.includes('Mova') ? '/images/mars-logo.png' : targetChainKey && (targetChainKey.includes('BSC') || targetChainKey.includes('Binance')) ? '/images/bnb-logo.png' : '',
 							chainId: targetChainData.chain_id,
 							contract: targetChainData.contract,
 							explorerUrl: targetChainData.explorer_url,
@@ -1295,7 +1295,7 @@ export default function Home() {
 												<HistoryRow key={it.tx_hash}>
 													<div>{it.from_chain}</div>
 													<div>{it.to_chain}</div>
-													<HashMono href={`https://scan.mova.bitheart.org/tx/${it.tx_hash}`} target="_blank" rel="noopener noreferrer">{it.tx_hash ? shortHash(it.tx_hash) : '-'}</HashMono>
+													<HashMono href={`https://scan.mars.movachain.com/tx/${it.tx_hash}`} target="_blank" rel="noopener noreferrer">{it.tx_hash ? shortHash(it.tx_hash) : '-'}</HashMono>
 													<div>{formatAmount(it.amount, it.token_symbol)}</div>
 													<div>{formatTime(it.create_time)}</div>
 													<StatusTag ok={false}>{it.status || 'Pending'}</StatusTag>
@@ -1322,7 +1322,7 @@ export default function Home() {
 												<HistoryRow key={it.tx_hash}>
 													<div>{it.from_chain}</div>
 													<div>{it.to_chain}</div>
-													<HashMono href={`https://scan.mova.bitheart.org/tx/${it.tx_hash}`} target="_blank" rel="noopener noreferrer">{it.tx_hash ? shortHash(it.tx_hash) : '-'}</HashMono>
+													<HashMono href={`https://scan.mars.movachain.com/tx/${it.tx_hash}`} target="_blank" rel="noopener noreferrer">{it.tx_hash ? shortHash(it.tx_hash) : '-'}</HashMono>
 													<div>{formatAmount(it.amount, it.token_symbol)}</div>
 													<div>{formatTime(it.create_time)}</div>
 													<StatusTag ok>{it.status || 'Executed'}</StatusTag>
