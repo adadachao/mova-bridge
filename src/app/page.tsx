@@ -99,6 +99,7 @@ const Tabs = styled.div`
 	width: 100%;
 	max-width: 1080px;
 	margin: 24px auto 0 auto;
+	position: relative;
 `;
 
 const Tab = styled.button<{ active?: boolean }>`
@@ -117,6 +118,19 @@ const Tab = styled.button<{ active?: boolean }>`
 
 	&:hover { opacity: 0.85; }
 	min-width: 30%;
+`;
+
+const RefreshButton = styled.button`
+	background: #C1FF72;
+	color: #231F20;
+	border: none;
+	border-radius: 6px;
+	font-weight: 700;
+	cursor: pointer;
+	padding: 8px 16px;
+	position: absolute;
+	right: 0;
+	top: 0;
 `;
 
 const Wrapper = styled.div`
@@ -186,6 +200,7 @@ const HistoryInnerTabs = styled.div`
 	align-items: center;
 	margin: 8px 0 12px 0;
 	border-bottom: 1px solid #3a3a3a;
+	position: relative;
 `;
 
 const HistoryInnerTab = styled.button<{ active?: boolean }>`
@@ -291,8 +306,6 @@ const StatusTag = styled.span<{ ok?: boolean }>`
 	font-size: 12px;
 	font-weight: 700;
 	color: ${({ ok }) => (ok ? '#0c0' : '#ffb300')};
-	background: ${({ ok }) => (ok ? '#0c0' : '#ffb300')}22;
-	border: 1px solid ${({ ok }) => (ok ? '#0c0' : '#ffb300')}55;
 `;
 
 const EmptyText = styled.div`
@@ -650,10 +663,9 @@ export default function Home() {
 
 	// History state
 	// const [historyAddress, setHistoryAddress] = useState('')
-	const [historyTab, setHistoryTab] = useState<'pending' | 'settled'>('pending')
+	const [historyTab, setHistoryTab] = useState('settled')
 	const [historyLoading, setHistoryLoading] = useState(false)
 	const [historyError, setHistoryError] = useState<string | null>(null)
-	const [historyPending, setHistoryPending] = useState<HistoryItem[]>([])
 	const [historyFinish, setHistoryFinish] = useState<HistoryItem[]>([])
 
 	// Modal states
@@ -994,8 +1006,7 @@ export default function Home() {
 			const res = await fetch(`https://bridge.marsapi.movachain.com/api/v1/user/history?address=${addr}`)
 			const json: HistoryApiResponse = await res.json()
 			if (json.code === 0 && json.data) {
-				setHistoryPending(json.data.pending || [])
-				setHistoryFinish(json.data.finish || [])
+				setHistoryFinish([...(json.data.pending || []), ...(json.data.finish || [])])
 			} else {
 				setHistoryError(json.msg || 'Failed to load history')
 			}
@@ -1323,8 +1334,8 @@ export default function Home() {
 						</HistoryTopBar> */}
 
 						<HistoryInnerTabs>
-							<HistoryInnerTab active={historyTab === 'pending'} onClick={() => setHistoryTab('pending')}>Pending Transactions</HistoryInnerTab>
 							<HistoryInnerTab active={historyTab === 'settled'} onClick={() => setHistoryTab('settled')}>Settled Transactions</HistoryInnerTab>
+							<RefreshButton onClick={() => fetchHistory(displayAddr)}>Refresh</RefreshButton>
 						</HistoryInnerTabs>
 
 						<HistoryCard>
@@ -1335,37 +1346,6 @@ export default function Home() {
 								</div>
 							) : historyError ? (
 								<EmptyText>{historyError}</EmptyText>
-							) : (historyTab === 'pending' ? (
-								<HistoryList>
-									{historyPending.length === 0 ? (
-										<EmptyText>No pending transactions</EmptyText>
-									) : (
-										<>
-											<HistoryHeader>
-												<div>From</div>
-												<div>To</div>
-												<div>Tx Hash</div>
-												<div>Amount</div>
-												<div>Confirmation</div>
-												<div>Fee</div>
-												<div>Create Time</div>
-												<div>Status</div>
-											</HistoryHeader>
-											{historyPending.map((it) => (
-												<HistoryRow key={it.tx_hash}>
-													<div>{it.from_chain}</div>
-													<div>{it.to_chain}</div>
-													<HashMono href={`${it.url_source}`} target="_blank" rel="noopener noreferrer">{it.tx_hash ? shortHash(it.tx_hash) : '-'}</HashMono>
-													<div>{formatAmount(it.amount, it.token_symbol)}</div>
-													<div>{it.confirm_count + '/' + (it.confirm_count + it.reject_count)}</div>
-													<div>{formatAmount(it.fee_amount, it.token_symbol as string)}</div>
-													<div>{formatTime(it.create_time)}</div>
-													<StatusTag ok={false}>{it.status || 'Pending'}</StatusTag>
-												</HistoryRow>
-											))}
-										</>
-									)}
-								</HistoryList>
 							) : (
 								<HistoryList>
 									{historyFinish.length === 0 ? (
@@ -1391,15 +1371,15 @@ export default function Home() {
 													<div>{it.confirm_count + '/' + (it.confirm_count + it.reject_count)}</div>
 													<div>{formatAmount(it.fee_amount, it.token_symbol as string)}</div>
 													<div>{formatTime(it.create_time)}</div>
-													<HashMono href={`${it.url_target}`} target="_blank" rel="noopener noreferrer">
+													{it.url_target ? <HashMono href={`${it.url_target}`} target="_blank" rel="noopener noreferrer">
 														<StatusTag ok>{it.status || 'Executed'}</StatusTag>
-													</HashMono>
+													</HashMono> : <StatusTag ok={false}>{it.status || 'Pending'}</StatusTag>}
 												</HistoryRow>
 											))}
 										</>
 									)}
 								</HistoryList>
-							))}
+							)}
 						</HistoryCard>
 					</AutoColumn>
 				)}
