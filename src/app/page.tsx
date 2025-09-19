@@ -51,6 +51,8 @@ type HistoryItem = {
 	status: string;
 	url_source: string;
 	url_target?: string;
+	confirm_count: number;
+	reject_count: number;
 };
 
 type HistoryApiResponse = {
@@ -93,7 +95,6 @@ const PanelWrapper = styled.div`
 
 const Tabs = styled.div`
 	display: flex;
-	gap: 8px;
 	width: 100%;
 	max-width: 960px;
 	margin: 24px auto 0 auto;
@@ -234,7 +235,7 @@ const HistoryList = styled.div`
 
 const HistoryHeader = styled.div`
 	display: grid;
-	grid-template-columns: 1fr 1fr 1.6fr 1fr 1.2fr auto;
+	grid-template-columns: 1fr 1fr 1.2fr 1fr 1.5fr 1fr auto;
 	gap: 8px;
 	align-items: center;
 	padding: 8px 12px;
@@ -248,14 +249,14 @@ const HistoryHeader = styled.div`
 	letter-spacing: 0.5px;
 	@media (max-width: 768px) {
 		min-width: 500px;
-		grid-template-columns: 1fr 1fr 1.2fr 1fr 1fr auto;
+		grid-template-columns: 1fr 1fr 1.2fr 1fr 1fr 1fr auto;
 		overflow-x: auto;
 	}
 `;
 
 const HistoryRow = styled.div`
 	display: grid;
-	grid-template-columns: 1fr 1fr 1.6fr 1fr 1.2fr auto;
+	grid-template-columns: 1fr 1fr 1.6fr 1fr 1.5fr 1fr auto;
 	gap: 8px;
 	align-items: center;
 	padding: 10px 12px;
@@ -265,7 +266,7 @@ const HistoryRow = styled.div`
 	color: #ddd;
 	@media (max-width: 768px) {
 		min-width: 500px;
-		grid-template-columns: 1fr 1fr 2.2fr 1fr 1fr auto;
+		grid-template-columns: 1fr 1fr 2.2fr 1fr 1fr 1fr auto;
 		overflow-x: auto;
 	}
 `;
@@ -1296,6 +1297,7 @@ export default function Home() {
 												<div>To</div>
 												<div>Tx Hash</div>
 												<div>Amount</div>
+												<div>Confirmation</div>
 												<div>Create Time</div>
 												<div>Status</div>
 											</HistoryHeader>
@@ -1305,6 +1307,7 @@ export default function Home() {
 													<div>{it.to_chain}</div>
 													<HashMono href={`${it.url_source}`} target="_blank" rel="noopener noreferrer">{it.tx_hash ? shortHash(it.tx_hash) : '-'}</HashMono>
 													<div>{formatAmount(it.amount, it.token_symbol)}</div>
+													<div>{Number(it.confirm_count / (it.confirm_count + it.reject_count)).toFixed(2)}</div>
 													<div>{formatTime(it.create_time)}</div>
 													<StatusTag ok={false}>{it.status || 'Pending'}</StatusTag>
 												</HistoryRow>
@@ -1323,6 +1326,7 @@ export default function Home() {
 												<div>To</div>
 												<div>Tx Hash</div>
 												<div>Amount</div>
+												<div>Confirmation</div>
 												<div>Create Time</div>
 												<div>Status</div>
 											</HistoryHeader>
@@ -1332,6 +1336,7 @@ export default function Home() {
 													<div>{it.to_chain}</div>
 													<HashMono href={`${it.url_source}`} target="_blank" rel="noopener noreferrer">{it.tx_hash ? shortHash(it.tx_hash) : '-'}</HashMono>
 													<div>{formatAmount(it.amount, it.token_symbol)}</div>
+													<div>{Number(it.confirm_count / (it.confirm_count + it.reject_count)).toFixed(2)}</div>
 													<div>{formatTime(it.create_time)}</div>
 													<HashMono href={`${it.url_target}`} target="_blank" rel="noopener noreferrer">
 														<StatusTag ok>{it.status || 'Executed'}</StatusTag>
