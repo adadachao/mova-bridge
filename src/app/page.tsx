@@ -53,6 +53,7 @@ type HistoryItem = {
 	url_target?: string;
 	confirm_count: number;
 	reject_count: number;
+	fee_amount: string; // wei string
 };
 
 type HistoryApiResponse = {
@@ -96,7 +97,7 @@ const PanelWrapper = styled.div`
 const Tabs = styled.div`
 	display: flex;
 	width: 100%;
-	max-width: 960px;
+	max-width: 1080px;
 	margin: 24px auto 0 auto;
 `;
 
@@ -121,7 +122,7 @@ const Tab = styled.button<{ active?: boolean }>`
 const Wrapper = styled.div`
 	position: relative;
 	width: 100%;
-	max-width: 960px;
+	max-width: 1080px;
 	background: linear-gradient(rgb(0, 0, 0) 0%, rgb(35, 31, 32) 100%);
 	border-radius: 0 0 12px 12px;
 	padding: 32px 56px;
@@ -235,7 +236,7 @@ const HistoryList = styled.div`
 
 const HistoryHeader = styled.div`
 	display: grid;
-	grid-template-columns: 1fr 1fr 1.2fr 1fr 1.5fr 1fr auto;
+	grid-template-columns: 1fr 1fr 1.2fr 1fr 1.5fr 1fr 1fr auto;
 	gap: 8px;
 	align-items: center;
 	padding: 8px 12px;
@@ -248,15 +249,15 @@ const HistoryHeader = styled.div`
 	text-transform: uppercase;
 	letter-spacing: 0.5px;
 	@media (max-width: 768px) {
-		min-width: 500px;
-		grid-template-columns: 1fr 1fr 1.2fr 1fr 1fr 1fr auto;
+		min-width: 720px;
+		grid-template-columns: 1fr 1fr 1.2fr 1fr 1fr 1fr 1fr auto;
 		overflow-x: auto;
 	}
 `;
 
 const HistoryRow = styled.div`
 	display: grid;
-	grid-template-columns: 1fr 1fr 1.6fr 1fr 1.5fr 1fr auto;
+	grid-template-columns: 1fr 1fr 1.6fr 1fr 1.5fr 1fr 1fr auto;
 	gap: 8px;
 	align-items: center;
 	padding: 10px 12px;
@@ -265,8 +266,8 @@ const HistoryRow = styled.div`
 	border-radius: 6px;
 	color: #ddd;
 	@media (max-width: 768px) {
-		min-width: 500px;
-		grid-template-columns: 1fr 1fr 2.2fr 1fr 1fr 1fr auto;
+		min-width: 720px;
+		grid-template-columns: 1fr 1fr 2.2fr 1fr 1fr 1fr 1fr auto;
 		overflow-x: auto;
 	}
 `;
@@ -596,6 +597,23 @@ const TokenFallbackCircle = styled.div`
   font-weight: 700;
 `;
 
+const HistoryLink = styled.a`
+  display: inline-block;
+  color: #C1FF72;
+  text-decoration: none;
+  font-size: 14px;
+  font-weight: 500;
+  margin-top: 8px;
+  cursor: pointer;
+  transition: opacity 0.2s ease;
+  text-align: center;
+
+  &:hover {
+    opacity: 0.8;
+    text-decoration: underline;
+  }
+`;
+
 function renderNetworkAvatar(src?: string, label?: string) {
 	if (src && src.trim().length > 0) {
 		return <NetworkIcon src={src} alt={label || ''} onError={(e) => ((e.currentTarget.style.display = 'none'), void 0)} />;
@@ -649,6 +667,8 @@ export default function Home() {
 	const [bridgeTxHash, setBridgeTxHash] = useState<`0x${string}` | undefined>(undefined)
 	// 跟踪已处理的授权哈希，避免重复触发
 	const [processedApproveHash, setProcessedApproveHash] = useState<string | null>(null)
+	// 显示查看历史按钮的状态
+	const [showViewHistory, setShowViewHistory] = useState(false)
 
 	// Token balance and allowance queries
 	const { data: tokenBalance, refetch: refetchTokenBalance } = useReadContract({
@@ -818,32 +838,43 @@ export default function Home() {
 
 	// 监听授权确认，避免重复触发
 	useEffect(() => {
-		if (isApproveConfirmed && approveHash && approveHash !== processedApproveHash) {
+		// 只有在有有效的网络和代币时才处理授权确认
+		if (isApproveConfirmed && approveHash && approveHash !== processedApproveHash && fromNetwork && fromToken) {
 			toast.success('Approve confirmed')
 			refetchTokenAllowance?.()
 			setProcessedApproveHash(approveHash)
 			updateButtonState()
 		}
-	}, [isApproveConfirmed, approveHash, processedApproveHash, refetchTokenAllowance, updateButtonState])
+	}, [isApproveConfirmed, approveHash, processedApproveHash, refetchTokenAllowance, updateButtonState, fromNetwork])
 
-	// 网络或代币变化时重置已处理哈希
+	// 网络变化时重置所有相关状态
 	useEffect(() => {
 		setProcessedApproveHash(null)
-	}, [fromNetwork?.id, fromToken?.address])
+		// 清空输入框
+		setFromAmount('')
+		// 隐藏查看历史按钮
+		setShowViewHistory(false)
+		// 重置按钮状态
+		updateButtonState()
+	}, [fromNetwork?.id])
+
+	// 代币变化时只重置已处理哈希，不清空输入框
+	useEffect(() => {
+		setProcessedApproveHash(null)
+		updateButtonState()
+	}, [fromToken?.address])
 
 	// Bridge 成功提示 + 刷新余额
 	useEffect(() => {
 		if (isBridgeConfirmed && bridgeTxHash) {
 			toast.success('Bridge submitted')
 			setBridgeTxHash(undefined)
-			// 清空输入框并在短暂延迟后刷新页面
+			// 清空输入框
 			setFromAmount('')
-			if (typeof window !== 'undefined') {
-				setTimeout(() => {
-					refetchTokenBalance()
-					updateButtonState()
-				}, 1500)
-			}
+			// 显示查看历史按钮
+			setShowViewHistory(true)
+			refetchTokenBalance()
+			updateButtonState()
 		}
 	}, [isBridgeConfirmed, bridgeTxHash, refetchTokenBalance, updateButtonState])
 
@@ -874,6 +905,13 @@ export default function Home() {
 		}
 	}, [buttonAction, handleApprove, handleBridge]);
 
+	// 跳转到历史页面
+	const handleViewHistory = useCallback(() => {
+		setActiveTab('history')
+		setHistoryTab('settled')
+		setShowViewHistory(false)
+	}, []);
+
 	const handleFromNetworkSelect = useCallback((network: Network) => {
 		setFromNetwork(network)
 		// 清空token选择，因为网络变了
@@ -881,6 +919,12 @@ export default function Home() {
 		setToToken(null)
 		setToNetwork(null)
 		setBridgeTxHash(undefined) // 清理
+		// 清空输入框
+		setFromAmount('')
+		// 重置已处理的授权哈希
+		setProcessedApproveHash(null)
+		// 更新按钮状态
+		updateButtonState()
 		// 切换钱包网络到所选 From 网络
 		try {
 			if (network.chainId && currentChainId !== network.chainId) {
@@ -889,7 +933,7 @@ export default function Home() {
 		} catch (e) {
 			console.warn('switch chain failed', e)
 		}
-	}, [currentChainId, switchChain])
+	}, [currentChainId, switchChain, updateButtonState])
 
 	const handleFromTokenSelect = useCallback((token: TokenInfo) => {
 		setFromToken(token)
@@ -1248,6 +1292,11 @@ export default function Home() {
 								>
 									{buttonText}
 								</ActionButton>
+								{showViewHistory && (
+									<HistoryLink onClick={handleViewHistory}>
+										View in Txn History
+									</HistoryLink>
+								)}
 							</BottomGrouping>
 						) : (
 							<div style={{ width: '100%' }}>
@@ -1298,6 +1347,7 @@ export default function Home() {
 												<div>Tx Hash</div>
 												<div>Amount</div>
 												<div>Confirmation</div>
+												<div>Fee</div>
 												<div>Create Time</div>
 												<div>Status</div>
 											</HistoryHeader>
@@ -1307,7 +1357,8 @@ export default function Home() {
 													<div>{it.to_chain}</div>
 													<HashMono href={`${it.url_source}`} target="_blank" rel="noopener noreferrer">{it.tx_hash ? shortHash(it.tx_hash) : '-'}</HashMono>
 													<div>{formatAmount(it.amount, it.token_symbol)}</div>
-													<div>{Number(it.confirm_count / (it.confirm_count + it.reject_count)).toFixed(2)}</div>
+													<div>{it.confirm_count + '/' + (it.confirm_count + it.reject_count)}</div>
+													<div>{formatAmount(it.fee_amount, it.token_symbol as string)}</div>
 													<div>{formatTime(it.create_time)}</div>
 													<StatusTag ok={false}>{it.status || 'Pending'}</StatusTag>
 												</HistoryRow>
@@ -1327,6 +1378,7 @@ export default function Home() {
 												<div>Tx Hash</div>
 												<div>Amount</div>
 												<div>Confirmation</div>
+												<div>Fee</div>
 												<div>Create Time</div>
 												<div>Status</div>
 											</HistoryHeader>
@@ -1336,7 +1388,8 @@ export default function Home() {
 													<div>{it.to_chain}</div>
 													<HashMono href={`${it.url_source}`} target="_blank" rel="noopener noreferrer">{it.tx_hash ? shortHash(it.tx_hash) : '-'}</HashMono>
 													<div>{formatAmount(it.amount, it.token_symbol)}</div>
-													<div>{Number(it.confirm_count / (it.confirm_count + it.reject_count)).toFixed(2)}</div>
+													<div>{it.confirm_count + '/' + (it.confirm_count + it.reject_count)}</div>
+													<div>{formatAmount(it.fee_amount, it.token_symbol as string)}</div>
 													<div>{formatTime(it.create_time)}</div>
 													<HashMono href={`${it.url_target}`} target="_blank" rel="noopener noreferrer">
 														<StatusTag ok>{it.status || 'Executed'}</StatusTag>
