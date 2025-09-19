@@ -681,6 +681,11 @@ export default function Home() {
 	const [processedApproveHash, setProcessedApproveHash] = useState<string | null>(null)
 	// 显示查看历史按钮的状态
 	const [showViewHistory, setShowViewHistory] = useState(false)
+	// 本地 in-flight 状态，避免依赖 wagmi 的 pending 抖动
+	const [approveInFlight, setApproveInFlight] = useState(false)
+	const [bridgeInFlight, setBridgeInFlight] = useState(false)
+	// 本地：在 approve 成功后短时覆盖 allowance，确保按钮立即切换到 Bridge
+	const [approvedForAmountWei, setApprovedForAmountWei] = useState<bigint | null>(null)
 
 	// Token balance and allowance queries
 	const { data: tokenBalance, refetch: refetchTokenBalance } = useReadContract({
@@ -743,7 +748,9 @@ export default function Home() {
 
 		const amountWei = parseEther(fromAmount || '0')
 		const balanceWei = tokenBalance || BigInt(0)
-		const allowanceWei = tokenAllowance || BigInt(0)
+		// 如果本地覆盖存在且覆盖额度>=当前输入，则使用覆盖额度作为 allowance
+		const approvedOverrideWei = approvedForAmountWei && amountWei <= approvedForAmountWei ? approvedForAmountWei : null
+		const effectiveAllowanceWei = approvedOverrideWei ?? (tokenAllowance || BigInt(0))
 
 		if (Number(balanceWei) < amountWei) {
 			setButtonText('Insufficient Balance')
@@ -752,9 +759,9 @@ export default function Home() {
 			return
 		}
 
-		// 检查是否需要Approve
-		if (Number(allowanceWei) < amountWei) {
-			if (isApprovePending || isApproveConfirming) {
+		// 授权流程：优先受本地 in-flight 控制 + allowance/effectiveAllowance
+		if (Number(effectiveAllowanceWei) < amountWei) {
+			if (approveInFlight) {
 				setButtonText('Approving...')
 				setButtonDisabled(true)
 				setButtonAction('approve')
@@ -766,17 +773,18 @@ export default function Home() {
 			return
 		}
 
-		// 可以跨链
-		if (isBridgePending || isBridgeConfirming) {
+		// 跨链流程：优先受本地 in-flight 控制
+		if (bridgeInFlight) {
 			setButtonText('Bridging...')
 			setButtonDisabled(true)
 			setButtonAction('bridge')
-		} else {
-			setButtonText('Bridge')
-			setButtonDisabled(false)
-			setButtonAction('bridge')
+			return
 		}
-	}, [isConnected, termsAccepted, fromToken, fromAmount, tokenBalance, tokenAllowance, isApprovePending, isApproveConfirming, isBridgePending, isBridgeConfirming])
+
+		setButtonText('Bridge')
+		setButtonDisabled(false)
+		setButtonAction('bridge')
+	}, [isConnected, termsAccepted, fromToken, fromAmount, tokenBalance, tokenAllowance, approveInFlight, bridgeInFlight, approvedForAmountWei])
 
 	// 监听状态变化，更新按钮
 	useEffect(() => {
@@ -815,6 +823,7 @@ export default function Home() {
 		console.log('handleBridge', fromNetwork, fromToken, fromAmount, address)
 		if (!fromNetwork?.contract || !fromToken?.address || !fromToken?.toChainId || !address) return
 		try {
+			setBridgeInFlight(true)
 			const hash = await writeBridgeAsync({
 				address: fromNetwork.contract as `0x${string}`,
 				abi: BridgeABI.abi,
@@ -829,50 +838,69 @@ export default function Home() {
 			setBridgeTxHash(hash as `0x${string}`)
 		} catch (e) {
 			console.error('outTransfer error', e)
+			setBridgeInFlight(false)
 		}
 	}, [fromNetwork, fromToken, fromAmount, address, writeBridgeAsync])
 
 	const handleApprove = useCallback(() => {
 		if (fromToken?.address && fromNetwork?.contract) {
-			try {
-				writeApprove({
-					address: fromToken.address as `0x${string}`,
-					abi: ERC20_ABI,
-					functionName: 'approve',
-					args: [fromNetwork.contract as `0x${string}`, maxUint256]
-				});
-			} catch (error) {
-				console.error('approve error', error)
-			}
-
+			setApproveInFlight(true)
+			writeApprove({
+				address: fromToken.address as `0x${string}`,
+				abi: ERC20_ABI,
+				functionName: 'approve',
+				args: [fromNetwork.contract as `0x${string}`, maxUint256]
+			});
 		}
 	}, [fromToken, fromNetwork, writeApprove]);
 
 	// 监听授权确认，避免重复触发
 	useEffect(() => {
-		// 只有在有有效的网络和代币时才处理授权确认
-		if (isApproveConfirmed && approveHash && approveHash !== processedApproveHash && fromNetwork && fromToken) {
+		// 只有在有有效的网络和代币、且是本地发起的授权中才处理授权确认
+		if (isApproveConfirmed && approveHash && approveHash !== processedApproveHash && fromNetwork && fromToken && approveInFlight) {
 			toast.success('Approve confirmed')
 			refetchTokenAllowance?.()
 			setProcessedApproveHash(approveHash)
+			setApproveInFlight(false)
+			// 记录本次已授权覆盖额度，确保按钮立即切到 Bridge
+			try {
+				const amt = parseEther(fromAmount || '0')
+				setApprovedForAmountWei(amt)
+			} catch {}
 			updateButtonState()
 		}
-	}, [isApproveConfirmed, approveHash, processedApproveHash, refetchTokenAllowance, updateButtonState, fromNetwork])
+	}, [isApproveConfirmed, approveHash, processedApproveHash, refetchTokenAllowance, updateButtonState, fromNetwork, fromToken, approveInFlight, fromAmount])
+
+	// 当 approve pending/confirming 都结束且未确认时，认为已取消或未进行，关闭本地 in-flight
+	useEffect(() => {
+		if (!isApprovePending && !isApproveConfirming && !isApproveConfirmed) {
+			setApproveInFlight(false)
+		}
+	}, [isApprovePending, isApproveConfirming, isApproveConfirmed])
+
+	// 授权失败时关闭本地 in-flight
+	useEffect(() => {
+		if (isApproveError) {
+			setApproveInFlight(false)
+		}
+	}, [isApproveError])
 
 	// 网络变化时重置所有相关状态
 	useEffect(() => {
 		setProcessedApproveHash(null)
-		// 清空输入框
 		setFromAmount('')
-		// 隐藏查看历史按钮
 		setShowViewHistory(false)
-		// 重置按钮状态
+		setApproveInFlight(false)
+		setBridgeInFlight(false)
+		setApprovedForAmountWei(null)
 		updateButtonState()
 	}, [fromNetwork?.id])
 
-	// 代币变化时只重置已处理哈希，不清空输入框
+	// 代币变化时只重置已处理哈希和授权 in-flight，不清空输入框
 	useEffect(() => {
 		setProcessedApproveHash(null)
+		setApproveInFlight(false)
+		setApprovedForAmountWei(null)
 		updateButtonState()
 	}, [fromToken?.address])
 
@@ -881,10 +909,9 @@ export default function Home() {
 		if (isBridgeConfirmed && bridgeTxHash) {
 			toast.success('Bridge submitted')
 			setBridgeTxHash(undefined)
-			// 清空输入框
 			setFromAmount('')
-			// 显示查看历史按钮
 			setShowViewHistory(true)
+			setBridgeInFlight(false)
 			refetchTokenBalance()
 			updateButtonState()
 		}
@@ -902,6 +929,7 @@ export default function Home() {
 		if (isBridgeError && bridgeTxHash) {
 			toast.error('Bridge failed')
 			setBridgeTxHash(undefined)
+			setBridgeInFlight(false)
 			updateButtonState()
 		}
 	}, [isBridgeError, bridgeTxHash, updateButtonState])
